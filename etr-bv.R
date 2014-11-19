@@ -1,10 +1,10 @@
-#!/bin/env Rscript
+#!/usr/bin/env Rscript
 ########################################################################
 # etr-bv.R - An ffprobe-based video bitrate viewer, using R graphics.
 #
 # Created 2012.09.12 by Warren Young of ETR.
 #
-# Copyright © 2012 by ETR..., Inc. All rights reserved.
+# Copyright © 2012-2014 by ETR..., Inc. All rights reserved.
 #
 # This program is licensed under the terms of the MIT license, which
 # should have accompanied this program in the file LICENSE.  If not,
@@ -31,8 +31,8 @@ if (is.null(dvFile) || !file.exists(dvFile)) {
 }
 
 # Examine file to determine frame rate
-cat('Analyzing DV file', dvFile, '...\n')
-streams <- system2('ffprobe', args = c('-show_streams', dvFile),
+cat('Checking DV file', dvFile, 'streams...\n')
+streams <- system2('ffprobe', args = c('-show_streams', shQuote(dvFile)),
     stdout = TRUE, stderr = NULL)
 if (is.integer(attr(streams, 'status'))) stop('FR ffprobe failed')
 rfr <- grep('^r_frame_rate=[1-9]+[0-9]*/[1-9]+[0-9]*$', streams,
@@ -42,21 +42,39 @@ fps = eval(parse(text = strsplit(rfr[1], '=')[[1]][2]))
 if (fps < 5 || fps > 60) stop(paste('Bogus FPS:', fps))
 cat('Stream FPS:', fps, '\n')
 
-# Ask ffprobe to gather its frame stats, then convert it to an R data
-# frame for convenient manipulation.
-rawStatsText <- system2('ffprobe',
-    args = c('-show_frames', '-print_format', 'json', dvFile),
-    stdout = TRUE, stderr = NULL)
+# Ask ffprobe to gather the requested DV file's frame stats
+cat('Analyzing DV file', paste0(dvFile, '...'))
+t <- system.time(rawStatsText <- system2('ffprobe',
+    args = c('-show_frames', '-print_format', 'json', shQuote(dvFile)),
+    stdout = TRUE, stderr = NULL))
 if (is.integer(attr(rawStatsText, 'status'))) stop('FS ffprobe failed')
-writeLines(rawStatsText, con = paste0(dvFile, '.json'))
-rawStats <- fromJSON(paste0(rawStatsText, collapse = ''))$frames
-statFrame <-do.call("rbind.fill", lapply(rawStats, as.data.frame))
+#writeLines(rawStatsText, con = paste0(dvFile, '.json'))
+cat(t[3], 'seconds.\n')
+
+# Convert the JSON output from ffprobe to a list of R structures
+cat('Transforming raw file stats, stage 1...')
+t <- system.time(rawStats <- fromJSON(
+    paste0(rawStatsText, collapse = ''))$frames)
+cat(t[3], 'seconds.\n')
+
+# Convert that raw data structure to a data frame
+cat('Transforming raw file stats, stage 2...')
+t <- system.time(rawFrame <- lapply(rawStats, as.data.frame))
+cat(t[3], 'seconds.\n')
+
+# Fill in missing values within that data frame, since it is effectively
+# merging multiple different object types.
+cat('Transforming raw file stats, stage 3...')
+t <- system.time(statFrame <- do.call("rbind.fill", rawFrame))
+cat(t[3], 'seconds.\n')
 
 # Clean up the R data frame.  The rbind.fill trick mooshes together the
 # audio, video and possibly other frame type data returned by ffprobe.
 # At minimum, we need to filter out all but video frames.  We could
 # also drop columns we don't use, but the code below doesn't care.
-statFrame <- subset(statFrame, media_type == 'video')
+cat('Transforming raw file stats, stage 4...')
+t <- system.time(statFrame <- subset(statFrame, media_type == 'video'))
+cat(t[3], 'seconds.\n')
 
 # DEBUG: Create "IPBBPBB..." ordered frame for interactive examination.
 #browsableFrame <- statFrame[order(statFrame$cpn),]
@@ -67,6 +85,7 @@ statFrame <- subset(statFrame, media_type == 'video')
 # conversion is necessary because the rbind.fill trick above gives us
 # a table of factors, not a table of numbers.  For the conversion from
 # factors to numbers, see: http://stackoverflow.com/questions/3418128
+cat('Distilling bit rate vector...\n')
 frames <- nrow(statFrame)
 pktPositions <- as.numeric(levels(statFrame$pkt_pos))[statFrame$pkt_pos]
 secondPositions <- pktPositions[
@@ -86,22 +105,25 @@ points <- length(bps)
 chartFrame <- data.frame(
   seconds = 1:points,
   mbps = MbitsPerSec(bps))
-peakMbps = MbitsPerSec(max(bps))
-if (!interactive()) X11()
-plot.new()
+peakMbps <- MbitsPerSec(max(bps))
+if (!interactive()) {
+  X11()
+  plot.new()
+}
 if (points > 100) {
   #plot(chartFrame, type = 's')
   stats <- paste('min =', MbitsPerSecStr(min(bps)), 'Mbit/sec, ',
                  'max =', MbitsPerSecStr(max(bps)), 'Mbit/sec, ',
                  'mean =', MbitsPerSecStr(mean(bps)), 'Mbit/sec, ',
                  'stddev =', MbitsPerSecStr(sd(bps)), 'Mbit/sec')
-  ggplot(chartFrame, aes(seconds, mbps)) +
+  # Include 0 and next 5 Mbit/s val above peak, but go to 20 Mbit/s at least
+  ymax <- ceiling(max(19, peakMbps) / 5) * 5
+  p <- ggplot(chartFrame, aes(seconds, mbps)) +
     ggtitle(paste('Bit rate for', basename(dvFile), '\n', stats)) +
     geom_step(size = 1) +
     scale_x_continuous(name = 'Time') +
-    scale_y_continuous(name = 'Mbit/sec',
-                       # include 0 and next 5 Mbit/s val above peak
-                       limits = c(0, ceiling(peakMbps / 5) * 5))
+    scale_y_continuous(name = 'Mbit/sec', limits = c(0, ymax))
+  print(p)
 } else {
   barchart(mbps ~ seconds, chartFrame,
            horizontal = FALSE,
@@ -111,8 +133,6 @@ if (points > 100) {
              panel.barchart(...)
            })
 }
-if (!interactive()) {
-  # wait for click on graph to exit
-  locator(1)
-  dev.off()
-}
+
+# Wait for a click on the graph if we're being run as a script
+if (!interactive()) locator(1)
