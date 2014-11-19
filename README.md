@@ -1,107 +1,76 @@
 Introduction
-~~~~~~~~~~~~
-    I created the ETR Bitrate Viewer because all the free ones I could
-    find were for Windows only, and closed source besides.  We used
-    a few happily for years, but there came a time that I needed to
-    know what was going on inside the bitrate viewer at a deep level.
-    Rather than write a direct clone of one of these, we built what
-    we actually needed instead, which was a short script leveraging
-    existing powerful tools.
+----
 
-    The ETR Bitrate Viewer (etr-bv from now on) is an R script that
-    sits in between the ffmpeg project's ffprobe tool, which gathers
-    the raw video frame statistics the tool uses, and the powerful
-    R graphics system.  If you run it inside a powerful R GUI like
-    RStudio (rstudio.org) you get the ability to inspect all the raw
-    and processed data that goes into the bitrate graph.  etr-bv is
-    designed to run in a standalone mode, via Rscript, but we really
-    recommend running it inside Rstudio instead because of the extra
-    power it gives you.
+[ETR](http://etr-usa.com) created the ETR Bitrate Viewer (`etr-bv`) because we could not find an open source program that did this. Every program we're aware of that produces a bitrate graph from an MPEG TS file is closed source.
 
-    Beware, etr-bv is slow.  ffprobe spams the script with much more
-    detailed statistics than it actually requires, and it has to plow
-    through all that noise to assemble the results you want.  On top
-    of that, the script is written in R, a slow interpreted language.
+The problem that kicked this project off was that we needed to know what was going on inside the bitrate viewer at a deep level. The processed GUI output of these programs was too high-level to solve the problem we were having at the time. We decided we needed to write our own bitrate viewer in order to get access to the raw data before it got reduced to a pretty GUI presentation. If we could make it run on non-Windows platform, that would be a distinct advantage, since ETR is very much a multi-platform company.
 
-    The compensation for this is that etr-bv is highly flexible,
-    discoverable, and manipulable.  If ffprobe returns the data you
-    need and you can summon the R-fu to use that data, you can mold
-    etr-bv to your needs of the moment.  It's only about 100 lines
-    of well-commented code, and R is a fairly readable language.
+Rather than write a direct clone of one of the existing closed-source Windows bitrate viewers, we built what we actually needed: a short script leveraging existing powerful tools.
+
+`etr-bv` is an R script that sits in between [`ffprobe`](http://ffmpeg.org/ffprobe.html) and the powerful R graphics system. While you can run it as a script via `Rscript` and just look at the GUI output, you can also run it inside the R interactive environment — or something more powerful like [RStudio](rstudio.org) — in order to inspect all the raw and processed data that goes into the bitrate graph.
 
 
 Requirements
-~~~~~~~~~~~~
-    - R, from http://r-project.org/  We used R 2.15.1 in development,
-      but it probably runs in much older versions.  We're not using
-      any advanced R features.
+----
 
-    - The non-core R packages ggplot2, plyr, and rjson.  It's easiest
-      to install these via RStudio.  If you're using stock R instead,
-      type something like
+-   [R](http://r-project.org/)
 
-        install.packages('rjson')
+    We've used various versions of R 2 and 3 in development, starting with 2.15.1, but it probably runs in much older versions.  We're not using any advanced R features.
 
-       Install each in turn.  There is no interdependency, so you
-       can install them in any order.
+-   The non-core R packages `ggplot2`, `plyr`, and `rjson`.
 
-    - ffprobe from the ffmpeg project, http://ffmpeg.org/  We're not
-      going to tell you how to download and build this here.
-      It's complex.  You might want to check your operating system's
-      package repository: someone else might have done the work to
-      build ready-to-use packages for you.
+    You can install them with this R command:
 
-    We also recommend RStudio, from http://rstudio.org/  This is a much
-    better R GUI than the one that comes with R, and it is still free.
-    It doesn't include R itself; you still need to download that.
+        install.packages(c("ggplot2", "plyr", "rjson"))
+    
+    You can also do this via the RStudio GUI, in the Packages panel.
+    
+-   ffprobe from the [FFmpeg project](http://ffmpeg.org/)
+
+    FFmpeg is open source, but difficult to build by hand.  It is far easier to use a build someone else has provided.  There are some linked from the FFmpeg project page, or you may find a version in your operating system's package repository.
 
 
 How To Use It via RStudio
-~~~~~~~~~~~~~~~~~~~~~~~~~
-    Open etr-bv.R inside RStudio, then say Ctrl-Shift-S to "source"
-    the script.  It will pop up a "file open" dialog.  Point it at
-    any digital video file that your ffmpeg build can understand,
-    then wait for it to work.
+----
+This is the recommended way to run `etr-bv`, since it lets you inspect the data that goes into the bitrate graph. (If you just want the graph, you should probably be using a different tool.)
 
-    If you need to make etr-bv.R do something different, run it on
-    the file you want to analyze, then start poking around in the
-    Workspace window.  There you'll find all the data frames and
-    variables the previous run created, which will help you figure
-    out how to modify the script.
+First you need to install R and RStudio.
 
-    In fact, sometimes you don't need to modify the script.  You can
-    do ad hoc data exploration by typing R commands into the Console
-    window, munching on this same data.  This is the beauty of RStudio:
-    it makes incremental solution exploration easy.
+Having done that, open `etr-bv.R` inside RStudio, then say Cmd/Ctrl-Shift-S to "source" the script.  It will pop up a "file open" dialog.  Point it at any digital video file that your `ffprobe` build can understand, then wait for it to work.
+
+If you need to make `etr-bv.R` do something different, run it on the file you want to analyze, then start poking around in the Workspace window.  There you'll find all the data frames and variables the previous run created, which will help you figure out how to modify the script.
+
+In fact, sometimes you don't need to modify the script.  You can do _ad hoc_ data exploration by typing R commands into the Console window, munching on this same data.  This is the beauty of RStudio: it makes incremental solution exploration easy.
 
 
 How to Use It via the Command Line
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    R should be in your PATH, particularly the Rscript executable.
-    With etr-bv.R in your path as well, on a Unix system you can run
-    it like this:
+----
+On a Unix type system, you just need to put `etr-bv.R` in your `PATH`. Then, this works:
 
-        $ etr-bv.R some-dv-file.mov
+    $ etr-bv.R some-dv-file.mov
 
-    On Windows, you can get the same behavior via Cygwin, though it
-    requires running with the X server enabled.
-    
-    If you want to run it on Windows from the command line without
-    Cygwin, you probably have to say something like this:
+That broad category includes Cygwin, though you will need to have the optional X server installed and running for this to work. You will also need to do this with the Cygwin version of R installed; it will not work with the native Windows port.
 
-        v:\> Rscript \path\to\etr-bv.R \path\to\some-dv-file.mov
+If you want to run it on Windows without Cygwin, I recommend the RStudio option above. Running it from the standard Windows command line (whether `cmd.exe` or PowerShell) is just too painful.
 
-    I'm not sure how well that will work.  I use the RStudio method
-    almost all the time myself, so it's quite possible I've broken
-    this since the last time I tested it. :)
 
+Damn, Son, This Thing Is *Slow!*
+----
+
+Yup.
+
+There are two main causes:
+
+1.  `ffprobe` spams `etr-bv` with much more detailed statistics than it actually requires, and it has to plow through all that noise to assemble the results.
+
+2.  The R interpreter is uncommonly slow for such a popular language. 
+
+    (Nevertheless, we do not regret choosing R. The `etr-bv` problem is exactly the sort of thing that R was created to solve, so it fits well with the language's nature.)
+
+The compensating value you get from this choice of tools is power. `etr-bv` is highly flexible, discoverable, and manipulable. If `ffprobe` returns the data you need and you can summon the R-fu to use that data, you can mold `etr-bv` to your needs of the moment.  It's only about 100 lines of well-commented code, and R is a fairly readable language.
 
 Support
-~~~~~~~
-    Join the etr-bv-users Google Group via http://groups.google.com/
+----
+Join the [`etr-bv-users` Google Group](http://groups.google.com/). The project's creator monitors that group's mailing list. If you ask an interesting question, he will probably respond. :)
 
-    The project's creator monitors that list, and responds to most
-    everything that appears there.
-
-    Patches to change the program are also welcome there.  We don't
-    promise to accept every patch, but we're happy to discuss ideas.
+Patches to change the program are also welcome on the list.  We don't promise to accept every patch, but we're happy to discuss ideas.
