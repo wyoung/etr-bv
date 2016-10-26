@@ -4,7 +4,7 @@
 #
 # Created 2012.09.12 by Warren Young of ETR.
 #
-# Copyright © 2012-2014 by ETR..., Inc. All rights reserved.
+# Copyright © 2012-2016 by ETR..., Inc. All rights reserved.
 #
 # This program is licensed under the terms of the MIT license, which
 # should have accompanied this program in the file LICENSE.  If not,
@@ -79,59 +79,63 @@ cat(t[3], 'seconds.\n')
 # DEBUG: Create "IPBBPBB..." ordered frame for interactive examination.
 #browsableFrame <- statFrame[order(statFrame$cpn),]
 
-# Get a list of position-in-file values at each second, then convert
-# them to a list of relative distances.  This effectively gets us bytes
-# per second at 1-second resolution across the file.  The pktPositions
-# conversion is necessary because the rbind.fill trick above gives us
-# a table of factors, not a table of numbers.  For the conversion from
-# factors to numbers, see: http://stackoverflow.com/questions/3418128
+# Get a list of position-in-file values at the end of each window, then
+# convert them to a list of relative distances.  This yields bytes/window.  
+#
+# The pktPositions conversion is necessary because the rbind.fill trick
+# above gives us a table of factors, not a table of numbers.  For info on
+# the conversion, see: http://stackoverflow.com/questions/3418128
+windowSize <- 2.0       # seconds per window
 cat('Distilling bit rate vector...\n')
 frames <- nrow(statFrame)
 pktPositions <- as.numeric(levels(statFrame$pkt_pos))[statFrame$pkt_pos]
-secondPositions <- pktPositions[
-  ceiling(seq(from = 0, to = frames, by = fps))
+windowPositions <- pktPositions[
+  ceiling(seq(from = 0, to = frames, by = fps * windowSize))
 ]
-bps <- secondPositions
-for (i in length(bps):2) bps[i] = bps[i] - bps[i - 1]
+bpw <- windowPositions
+for (i in length(bpw):2) bpw[i] = bpw[i] - bpw[i - 1]
+
+# Assemble summary statistics
+MbitsPerSec <- function(bytesPerWin)
+    bytesPerWin * 8 / 1024 / 1024 / windowSize
+MbitsPerSecStr <- function(bytesPerWin)
+  format(MbitsPerSec(bytesPerWin), digits = 3)
+peakMbps <- MbitsPerSec(max(bpw))
+stats <- paste('min =', MbitsPerSecStr(min(bpw)), 'Mbit/sec, ',
+               'max =', MbitsPerSecStr(max(bpw)), 'Mbit/sec, ',
+               'mean =', MbitsPerSecStr(mean(bpw)), 'Mbit/sec, ',
+               'stddev =', MbitsPerSecStr(sd(bpw)), 'Mbit/sec')
 
 # Build bit rate graph.  Use a nice bar chart if the input file is
 # short enough that you can see the bars.  Fall back to a stairstep
 # plot if there would be enough bars to overcrowd a bar chart.
 cat('Graphing stats for', frames, 'video frames...\n')
-MbitsPerSec <- function(bytesPerSec) bytesPerSec * 8 / 1024 / 1024
-MbitsPerSecStr <- function(bytesPerSec)
-  format(MbitsPerSec(bytesPerSec), digits = 3)
-points <- length(bps)
-chartFrame <- data.frame(
-  seconds = 1:points,
-  mbps = MbitsPerSec(bps))
-peakMbps <- MbitsPerSec(max(bps))
+title <- paste('Bit rate for', basename(dvFile), '\n', stats)
+points <- length(bpw)
+barNames <- 1:points * windowSize
+mbps     <- MbitsPerSec(bpw)
+chartFrame <- data.frame(brWindows = barNames, winHeights = mbps)
 if (!interactive()) {
   X11()
   plot.new()
 }
 if (points > 100) {
-  #plot(chartFrame, type = 's')
-  stats <- paste('min =', MbitsPerSecStr(min(bps)), 'Mbit/sec, ',
-                 'max =', MbitsPerSecStr(max(bps)), 'Mbit/sec, ',
-                 'mean =', MbitsPerSecStr(mean(bps)), 'Mbit/sec, ',
-                 'stddev =', MbitsPerSecStr(sd(bps)), 'Mbit/sec')
   # Include 0 and next 5 Mbit/s val above peak, but go to 20 Mbit/s at least
   ymax <- ceiling(max(19, peakMbps) / 5) * 5
-  p <- ggplot(chartFrame, aes(seconds, mbps)) +
-    ggtitle(paste('Bit rate for', basename(dvFile), '\n', stats)) +
+  p <- ggplot(chartFrame, aes(brWindows, winHeights)) +
+    ggtitle(title) +
     geom_step(size = 1) +
-    scale_x_continuous(name = 'Time') +
+    scale_x_continuous(name = 'Time (seconds)') +
     scale_y_continuous(name = 'Mbit/sec', limits = c(0, ymax))
   print(p)
 } else {
-  barchart(mbps ~ seconds, chartFrame,
-           horizontal = FALSE,
-           ylab = 'Mbits/sec',
-           panel = function(...) {
-             panel.grid(v = FALSE)
-             panel.barchart(...)
-           })
+  barplot(mbps,
+          names.arg = barNames,
+          xlab = 'seconds',
+          ylab = 'Mbits/sec',
+          ylim = c(0, floor(peakMbps * 1.1)),
+          main = title,
+          sub = stats)
 }
 
 # Wait for a click on the graph if we're being run as a script
