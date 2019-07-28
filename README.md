@@ -71,6 +71,6 @@ The compensating value you get from this choice of tools is power. `etr-bv` is h
 
 Support
 ----
-File an issue [on the GitHub of this repo](https://github.com/wyoung/etr-bv).
+[File a GitHub issue](https://github.com/wyoung/etr-bv/issues).
 
-Because this is a mirror of a privately-managed [Fossil ](https://fossil-scm.org) repo, we do not accept PRs on GitHub directly, but we can turn them into patches that will get mirrored up here.
+Because this GitHub repo is a mirror of a privately-managed [Fossil](https://fossil-scm.org) repo, we do not accept PRs on GitHub directly, but we can turn them into patches that will get mirrored up here.
