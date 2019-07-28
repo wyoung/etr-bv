@@ -71,6 +71,6 @@ The compensating value you get from this choice of tools is power. `etr-bv` is h
 
 Support
 ----
-Join the [`etr-bv-users` Google Group](http://groups.google.com/). The project's creator monitors that group's mailing list. If you ask an interesting question, he will probably respond. :)
+File an issue [on the GitHub of this repo](https://github.com/wyoung/etr-bv).
 
-Patches to change the program are also welcome on the list.  We don't promise to accept every patch, but we're happy to discuss ideas.
+Because this is a mirror of a privately-managed [Fossil ](https://fossil-scm.org) repo, we do not accept PRs on GitHub directly, but we can turn them into patches that will get mirrored up here.
