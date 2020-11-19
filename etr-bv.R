@@ -4,11 +4,11 @@
 #
 # Created 2012.09.12 by Warren Young of ETR.
 #
-# Copyright © 2012-2016 by ETR..., Inc. All rights reserved.
+# Copyright © 2012-2020 by ETR..., Inc. All rights reserved.
 #
 # This program is licensed under the terms of the MIT license, which
 # should have accompanied this program in the file LICENSE.  If not,
-# you can download it from https://code.google.com/p/etr-bv/
+# you can download it from https://github.com/wyoung/etr-bv
 ########################################################################
 
 require(ggplot2)
@@ -88,7 +88,7 @@ cat(t[3], 'seconds.\n')
 windowSize <- 2.0       # seconds per window
 cat('Distilling bit rate vector...\n')
 frames <- nrow(statFrame)
-pktPositions <- as.numeric(levels(statFrame$pkt_pos))[statFrame$pkt_pos]
+pktPositions <- as.numeric(statFrame$pkt_pos)
 windowPositions <- pktPositions[
   ceiling(seq(from = 0, to = frames, by = fps * windowSize))
 ]
