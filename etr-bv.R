@@ -133,7 +133,7 @@ if (points > 100) {
           names.arg = barNames,
           xlab = 'seconds',
           ylab = 'Mbits/sec',
-          ylim = c(0, floor(peakMbps * 1.1)),
+          ylim = c(0, ceiling(peakMbps * 1.1)),
           main = title,
           sub = stats)
 }
